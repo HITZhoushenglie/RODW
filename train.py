@@ -20,11 +20,7 @@ from torch.utils.data import DataLoader
 
 import sys
 sys.path.append('/home/ubuntu/code/RobustWide-master/')
-from rein_learning.attack_layer.DefocusBlurAttack import DefocusBlurAttack
-from rein_learning.attack_layer.GaussianBlurAttack import GaussianBlurAttack
 from rein_learning.custom_pipe import CustomStableDiffusionInstructPix2PixPipeline
-# from dataset import get_hugging_instruct_pix2pix_dataset, collate_fn
-# from model import WatermarkModel
 from rein_learning.model import WatermarkModel
 from utils import (
     decoded_message_error_rate_batch,
@@ -110,14 +106,6 @@ class Main(): # ddpo_config, args, args_ddpo, reward_fn, prompt_fn
             weight_dtype=weight_dtype,
         )
 
-        # self.DefocusBlur = DefocusBlurAttack()
-        # self.GaussianBlur = GaussianBlurAttack()
-        # self.DefocusBlur.to(device)
-        # self.GaussianBlur.to(device)
-        # self.attacks = []
-
-        # params_to_optimize = list(p for p in wm_model.parameters() if p.requires_grad)
-
         self.sd_pipeline = CustomStableDiffusionInstructPix2PixPipeline.from_pretrained(
             "/home/ubuntu/code/RobustWide-master/timbrooks/instruct-pix2pix",
             torch_dtype=weight_dtype,
@@ -133,16 +121,6 @@ class Main(): # ddpo_config, args, args_ddpo, reward_fn, prompt_fn
 
         self.sd_pipeline.freeze_params()
 
-        # set lora config
-        trainable_params = []
-        # lora_config = LoraConfig(
-        #     r=8,  
-        #     lora_alpha=16, 
-        #     target_modules=["q_proj", "k_proj", "v_proj", "out_proj"],  
-        #     lora_dropout=0.1,
-        #     bias="none",
-        #     task_type="TEXT_ENCODER"
-        # )
         lora_config = LoraConfig(
             r=self.train_config.text_lora_r,
             lora_alpha=self.train_config.text_lora_alpha,
@@ -160,9 +138,6 @@ class Main(): # ddpo_config, args, args_ddpo, reward_fn, prompt_fn
                 param.data = param.to(torch.float32)
                 trainable_params.append(param)
         
-        # params_to_optimize = []
-        # params_to_optimize.extend([p for p in wm_model.parameters() if p.requires_grad])
-        # params_to_optimize.extend([p for p in self.sd_pipeline.text_encoder.parameters() if p.requires_grad])
         params_to_optimize = [p for p in list(wm_model.parameters()) + trainable_params if p.requires_grad]
         wm_model.train()
         self.sd_pipeline.text_encoder.train()
@@ -228,33 +203,9 @@ class Main(): # ddpo_config, args, args_ddpo, reward_fn, prompt_fn
         OmegaConf.save(self.wm_model_config, os.path.join(save_dir, "wm_model_config.yaml"))
 
     def train(self, args, output_with_time_dir, device, weight_dtype, train_dataloader, opt, lr_scheduler,  wm_model, unwrapped_wm_model):
-        
-        # set multi-turn editing prompt
-        # edit_prompt_path = os.path.join(args.train_data_dir, "muti_edit_prompt_200.txt")
-        # prompt_texts = []
-        # try:
-        #     with open(edit_prompt_path, 'r', encoding='utf-8') as file:
-        #         for line in file:
-        #             items = line.strip().split(',')
-        #             items = [item.strip() for item in items if item.strip()]
-        #             prompt_texts.append(items)
-        #     num = len(prompt_texts)
-        #     # edit_nums = len(prompt_texts[0]) - 0 # Default editing times = 4, 3, 2, 1, 0 -> 1, 2, 3, 4, 5
-        #     edit_nums = len(prompt_texts[0]) - 3
-        #     print(num, edit_nums)
-        # except FileNotFoundError:
-        #     print(f"错误：文件 {edit_prompt_path} 未找到")
-        #     return []
-        # except Exception as e:
-        #     print(f"读取文件时发生错误: {e}")
-        #     return []
-        
         step = 0
         global_step = 0
         finished_flag = False
-        # torch.cuda.reset_peak_memory_stats()
-        # start_time = time.time()
-        # memory_list = []
         while True:
             for data in train_dataloader:
                 step += 1
@@ -503,11 +454,6 @@ class Main(): # ddpo_config, args, args_ddpo, reward_fn, prompt_fn
         original_keys = samples.keys()
         original_values = samples.values()
 
-        # print(type(original_values), len(original_values))
-        # original_values_ = list(original_values)
-        # for v in original_values_:
-        #     print(f"original_values={v.shape}") # shape '[-1, 2, 4, 16, 16]' is invalid for input of size 3072
-
         # rebatch them as user defined train_batch_size is different from sample_batch_size
         reshaped_values = [v.reshape(-1, self.config.train_batch_size, *v.shape[1:]) for v in original_values]
 
@@ -647,28 +593,18 @@ class Main(): # ddpo_config, args, args_ddpo, reward_fn, prompt_fn
             prev_sample=next_latents,
         )
         
-        # print(noise_pred.shape, next_latents.shape, advantages.shape, embeds.shape, log_prob.shape)
-        # "latents": latents[:, :-1],  # [2 20 4 32 32]
-        # "next_latents": latents[:, 1:], # [2 20 4 32 32]
-        #  latents:[2 4 32 32] timesteps: [] next_latents: [2 4 32 32] log_probs: [2] advantages:[2] embeds:[6 77 768] train_adv_clip_max: 10
         advantages = torch.clamp(
             advantages,
             -self.config.train_adv_clip_max,
             self.config.train_adv_clip_max,
         )
-        
-        # print(f"log_prob = {log_prob}, log_probs = {log_probs}")
+
         # Add cropping and minimum operation: prevent over update
         with torch.no_grad():
             delta_log = torch.clamp(log_prob - log_probs, min=-50.0, max=50.0)  # limit range
         ratio = torch.exp(delta_log) # new_policy / old_policy
-        
-        # ratio = torch.exp(log_prob - log_probs)
-        # train_clip_range: float = 1e-4
         loss = self.loss(advantages, self.config.train_clip_range, ratio)
-        # print(f"ratio = {ratio}, log_prob = {log_prob}, log_probs= {log_probs}, advantages = {advantages}")
-        # approx_kl = 0.5 * torch.mean((log_prob - log_probs) ** 2)
-
+        
         # When delta-log is small, use Taylor approximation, and when it is large, use ratio method
         safe_mask = (torch.abs(delta_log) < 5.0).float()
         approx_kl = 0.5 * torch.mean(safe_mask * delta_log ** 2) + \
@@ -690,9 +626,6 @@ class Main(): # ddpo_config, args, args_ddpo, reward_fn, prompt_fn
             1.0 - clip_range,
             1.0 + clip_range,
         )
-        # clip_range = 0.0001 ratio = 0.0
-        # print(f"advantages = {advantages}, ratio = {ratio}, clip_range = {clip_range}")
-        # print(f"unclipped_loss = {unclipped_loss}, clipped_loss = {clipped_loss}")
 
         return torch.mean(torch.maximum(unclipped_loss, clipped_loss))
 
@@ -712,13 +645,6 @@ class Main(): # ddpo_config, args, args_ddpo, reward_fn, prompt_fn
                     # embeds = torch.cat([neg_embeds, embeds])
                     embeds = torch.cat([embeds, neg_embeds, neg_embeds])
                 with self.accelerator.accumulate([self.sd_pipeline.unet, self.sd_pipeline.text_encoder]):
-                    #  latents:[1 4 32 32] timesteps: [1 20] next_latents: [1 4 32 32] log_probs: [1] advantages:[1] embeds:[2 77 768]
-                    # loss, _, _ = self.calculate_loss(
-                    #     sample["log_probs"][:, len(sample["log_probs"])-1],
-                    #     sample["log_probs"][:, len(sample["log_probs"])-2],
-                    #     sample["advantages"],
-                    # )
-                    # latents:[2 20 4 32 32] timesteps: [2 20] next_latents: [2 20 4 32 32] log_probs: [2 20] advantages:[2] embeds:[4 77 768]
                     loss, approx_kl, _ = self.calculate_loss(j,
                             sample["latents"][:, j],
                             sample["timesteps"][0, j],
@@ -728,9 +654,8 @@ class Main(): # ddpo_config, args, args_ddpo, reward_fn, prompt_fn
                             sample["advantages"],
                             embeds,
                         )
-                # print(f"loss = {loss}, approx_kl={approx_kl}") loss_ = loss + approx_kl
                 loss_ = loss + approx_kl
-                # loss_ += loss 
+
         opt_loss = loss_ / (len(batched_samples * self.num_train_timesteps))
         loss = enc_loss + dec_loss + args.opt_rein_weight * opt_loss
 
@@ -739,9 +664,6 @@ class Main(): # ddpo_config, args, args_ddpo, reward_fn, prompt_fn
         opt.step()
         lr_scheduler.step()
         opt.zero_grad()
-
-        # return loss / (len(batched_samples * self.num_train_timesteps))
-        # return loss / len(batched_samples) 
         return loss, opt_loss
 
 if __name__ == "__main__":
