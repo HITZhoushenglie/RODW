@@ -6,7 +6,6 @@ We propose Reinforcement-Optimized Diversified Watermarking (RODW), a novel fram
 
 # Getting Started
 # Prerequisites
-git clone https://github.com/HITZhoushenglie/RODW.git
 conda create -n rodw python=3.8
 conda activate rodw
 pip install -r requirements.txt
@@ -18,7 +17,7 @@ python ./get_refactoring_prompt.py
 
 # Train
 
-1. Download the [datasets](https://huggingface.co/datasets/timbrooks/instructpix2pix-clip-filtered) and put them into the data dir ./timbrooks/instruct-pix2pix.
+1. Download the [datasets](https://huggingface.co/datasets/timbrooks/instructpix2pix-clip-filtered) and put them into the data dir ./data.
 
 2. Configure the train script and then run it.
 
