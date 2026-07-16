@@ -41,34 +41,13 @@ class TimeStampManager:
             cls._instance = super().__new__(cls)
             # init timesteps
             cls.start_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            # cls.log_dir = os.path.join("./inference_results", cls.start_time)
             
             # ori + rein + blip
             cls.log_dir = os.path.join("./inference_results/robustness/rodw", cls.start_time)
-            
-            # ori + rein  
-            # cls.log_dir = os.path.join("./inference_results/Ablation/openimage/ori+rein", cls.start_time)
-
-            # vlm+rlo
-            # cls.log_dir = os.path.join("./inference_results/robustness/vlm+rlo", cls.start_time)
-
-            # llm+rlo
-            # cls.log_dir = os.path.join("./inference_results/robustness/llm+rlo", cls.start_time)
-
-            # test image resolution
-            # cls.log_dir = os.path.join("./inference_results/robustness/128x128", cls.start_time)
-
-            # test image resolution
-            # cls.log_dir = os.path.join("./inference_results/robustness/192x192", cls.start_time)
-
-            # 256x256 128bits
-            # cls.log_dir = os.path.join("./inference_results/robustness/256x256/128bits", cls.start_time)
-
             cls.log_dir_img = os.path.join(cls.log_dir, "./image")
             cls.log_dir_wm = os.path.join(cls.log_dir, "./wm_image")
             cls.log_dir_edit = os.path.join(cls.log_dir, "./edit_image")
             cls.log_dir_res = os.path.join(cls.log_dir, "./res_image")
-
             os.makedirs(cls.log_dir, exist_ok=True)
             os.makedirs(cls.log_dir_img, exist_ok=True)
             os.makedirs(cls.log_dir_wm, exist_ok=True)
@@ -149,9 +128,9 @@ def main(current_step, ckpt_dir, instance_image_file, edit_prompt_path, image_si
     # 2 get original prompt
     # Insp2p
     test_file_path = edit_prompt_path
-    # test_file_path = "/home/ubuntu/datasets/robust_wide/data/muti_edit_prompt_200.txt"
+    # test_file_path = "./data/muti_edit_prompt_200.txt"
     # OpenImage
-    # test_file_path = "/home/ubuntu/datasets/robust_wide/data/OpenImage/edit_prpmpt_test_200.txt"
+    # test_file_path = "./data/OpenImage/edit_prpmpt_test_200.txt"
     prompt_texts = []
     try:
         with open(test_file_path, 'r', encoding='utf-8') as file:
@@ -257,37 +236,8 @@ def main(current_step, ckpt_dir, instance_image_file, edit_prompt_path, image_si
     print(f"psnr_avg: {psnr_value}, ssim_avg: {ssim_value}, ber_avg: {ber}, encode_time_avg: {encode_time}, edit_time_avg: {edit_time}, decode_time_avg: {decode_time}")
 
     # ori + rein + blip
-    # csv_file = get_csv_path(f"rodw_insp2p_result_edit_2_all")
-    # csv_file_best = get_csv_path(f"rodw_insp2p_result_edit_2_best")
-
     csv_file = get_csv_path(f"rodw_insp2p_result_edit_2_all")
     csv_file_best = get_csv_path(f"rodw_insp2p_result_edit_2_best")
-    
-
-    # ori + rein
-    # csv_file = get_csv_path(f"ori_rein_insp2p_result_edit_1_all")
-    # csv_file_best = get_csv_path(f"ori_rein_insp2p_result_edit_1_best")
-
-    # vlm+rlo
-    # csv_file = get_csv_path(f"vlm_rlo_insp2p_result_edit_2_all")
-    # csv_file_best = get_csv_path(f"vlm_rlo_insp2p_result_edit_2_best")
-
-    # llm+rlo
-    # csv_file = get_csv_path(f"llm_rlo_insp2p_result_edit_2_all")
-    # csv_file_best = get_csv_path(f"llm_rlo_insp2p_result_edit_2_best")
-
-    # 128x128
-    # csv_file = get_csv_path(f"128x128_insp2p_result_edit_2_all")
-    # csv_file_best = get_csv_path(f"128x128_insp2p_result_edit_2_best")
-
-    # 192x192
-    # csv_file = get_csv_path(f"192x192_insp2p_result_edit_3_all")
-    # csv_file_best = get_csv_path(f"192x192_insp2p_result_edit_3_best")
-
-    #256x256 128bits 
-    # csv_file = get_csv_path(f"128_256x256_insp2p_result_edit_3_all")
-    # csv_file_best = get_csv_path(f"128_256x256_insp2p_result_edit_3_best")
-
     file_exists = os.path.exists(csv_file)
     file_exists_best = os.path.exists(csv_file_best)
     
@@ -340,24 +290,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # test all result
-    # all_step = 200000
-    # init_step = 40000
-
-    # test best result (llm+rlo 1-round)
-    # all_step = 121000
-    # init_step = 120000
-
-    # test best result (llm+rlo 1-round)
-    # all_step = 131000
-    # init_step = 130000
-
-    # test best result (dsg+rlo 2-round)
-    # all_step = 128000
-    # init_step = 127000
-
-    # test rodw
-    all_step = 149000
-    init_step = 148000
+    all_step = 200000
+    init_step = 40000
 
     for current_step in range(init_step, all_step, 1000):
         model_ckpt_dir =  args.ckpt_dir + f"/step{current_step}" 
